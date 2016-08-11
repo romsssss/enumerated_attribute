@@ -9,11 +9,11 @@ if defined?(ActiveRecord)
 					column_without_enumerated_attribute(name, type, options)
 				end
 				safe_alias_method_chain :column, :enumerated_attribute
-				
+
 				def enum(*args)
-					options = args.extract_options!                                      
-					column_names = args                                                   
-					column_names.each { |name| column(name, 'string', options) }  
+					options = args.extract_options!
+					column_names = args
+					column_names.each { |name| column(name, 'string', options) }
 				end
 			end
 			class Table
@@ -22,11 +22,11 @@ if defined?(ActiveRecord)
 					column_without_enumerated_attribute(name, type, options)
 				end
 				safe_alias_method_chain :column, :enumerated_attribute
-				
+
 				def enum(*args)
-					options = args.extract_options!                                      
-					column_names = args                                                   
-					column_names.each { |name| column(name, 'string', options) }  
+					options = args.extract_options!
+					column_names = args
+					column_names.each { |name| column(name, 'string', options) }
 				end
 			end
 		end
@@ -59,15 +59,27 @@ end
 if defined?(ActionView::Base)
 	module ActionView
 		module Helpers
-		
+
 			#form_options_helper.rb
 			module FormOptionsHelper
 				#def select
 				def enum_select(object, method, options={}, html_options={})
-					InstanceTag.new(object, method, self, options.delete(:object)).to_enum_select_tag(options, html_options)
+					if defined?(ActionView::Base::Tags::Select)  # Rails 4
+					select_tag = Tags::Select.new(object, method, self, [], options, html_options)
+					obj = select_tag.object
+
+					choices = []
+					if obj.respond_to?(:enums)
+						enums = obj.enums(method.to_sym)
+						choices = enums ? enums.select_options : []
+					end
+						Tags::Select.new(object, method, self, choices, options, html_options).render
+				  else  # Rails 3
+						InstanceTag.new(object, method, self, options.delete(:object)).to_enum_select_tag(options, html_options)
+				  end
 				end
 			end
-			
+
 			class InstanceTag
 				def to_enum_select_tag(options, html_options={})
 					choices = []
@@ -82,14 +94,14 @@ if defined?(ActionView::Base)
 					end
 					to_select_tag(choices, options, html_options)
 				end
-				
+
 				#initialize record_name, method, self
 				if respond_to?(:to_tag)
   				def to_tag_with_enumerated_attribute(options={})
   					#look for an enum
-  					if (column_type == :string && 
+  					if (column_type == :string &&
   						self.object.class.respond_to?(:has_enumerated_attribute?) &&
-  						self.object.class.has_enumerated_attribute?(method_name.to_sym)) 
+  						self.object.class.has_enumerated_attribute?(method_name.to_sym))
   						to_enum_select_tag(options)
   					else
   						to_tag_without_enumerated_attribute(options)
@@ -98,13 +110,13 @@ if defined?(ActionView::Base)
   				alias_method_chain :to_tag, :enumerated_attribute
 				end
 			end
-			
+
 			class FormBuilder
 				def enum_select(method, options={}, html_options={})
 					@template.enum_select(@object_name, method, objectify_options(options), @default_options.merge(html_options))
 				end
 			end
-			
+
 		end
 	end
 end
